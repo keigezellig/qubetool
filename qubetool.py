@@ -1,9 +1,10 @@
 import argparse
 
+import subprocess
+
 
 def constructArgParser():
     parser = argparse.ArgumentParser()
-
 
     subparsers = parser.add_subparsers(title='subcommands', description='Valid subcommands are:', dest="command")
     project_parser = subparsers.add_parser(name='project', help='Activates a google cloud project')
@@ -16,7 +17,9 @@ def constructArgParser():
     create_clusterparser = cluster_subparsers.add_parser(name='c', description='Creates a kubernetes cluster in the current google cloud project', help='Creates a kubernetes cluster in the current google cloud project')
     create_clusterparser.add_argument('clustername', help='Cluster name')
     create_clusterparser.add_argument('--zone', help='Google compute zone in which this cluster should run', default='europe-west1-c')
-
+    create_clusterparser.add_argument('--namespace',
+                                      help='Create a namespace with this name and set this as default for this cluster',
+                                      default='')
 
     delete_clusterparser = cluster_subparsers.add_parser(name='d',description='Deletes a kubernetes cluster in the current google cloud project', help='Deletes a kubernetes cluster in the current google cloud project')
     delete_clusterparser.add_argument('clustername', help='Cluster name')
@@ -55,14 +58,57 @@ def constructArgParser():
     version_podparser.add_argument('pod expression', help='A name or part of name (grep is used) of the pod')
 
 
-
-
-
-
     return parser
+
+
+def handle_project_cmd(args):
+    project_name = args.projectname
+    try:
+        output = subprocess.run(["gcloud", "config", "set", "project", project_name], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, check=True)
+        print(output.stdout.decode('UTF-8') + " " + output.stderr.decode('UTF-8'))
+    except subprocess.CalledProcessError as e:
+        print("errorrrr {e}".format(e=e.output))
+
+
 
 
 if __name__ == "__main__":
     argParser = constructArgParser()
     args = argParser.parse_args()
+
+    if args.command == 'project':
+        handle_project_cmd(args=args)
+
     print(args)
+
+
+# project switch: gcloud config set project [PROJECT_ID]
+# create cluster: gcloud config set compute/zone [ZONE]
+#                 gcloud container clusters create [clustername] --machine-type "n1-standard-1"\
+#                 --image-type "GCI"\
+#                 --disk-size "100"\
+#                 --scopes "https://www.googleapis.com/auth/compute","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append"\
+#                 --num-nodes "1"\
+#                 --enable-cloud-logging\
+#                 --no-enable-cloud-monitoring
+#                 gcloud container clusters get-credentials clustername
+#                 kubectl create namespace NAMESPACENAME
+#                 kubectl config set-context $(kubectl config current-context) --namespace=<insert-namespace-name-here>
+
+# delete cluster:
+
+# echo "Deleting cluster $CLUSTER_NAME"
+# 	gcloud container\
+# 	 --project "$PROJECT_NAME"\
+# 	 clusters delete "$CLUSTER_NAME"\
+# 	 --zone "$CLUSTER_ZONE"
+#
+# 	echo "Deleting disks $CLUSTER_NAME"
+# 	DISKS=`gcloud compute disks list | grep -i "$CLUSTER_NAME" | awk '{print $1}'`
+# 	for DISK in $DISKS;
+# 	do
+# 		echo "Deleting $DISK"
+# 		gcloud compute disks delete "$DISK"
+# 	done
+#
